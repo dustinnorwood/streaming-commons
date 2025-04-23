@@ -82,7 +82,9 @@ module Data.Streaming.Network
 import qualified Network.Socket as NS
 import Data.Streaming.Network.Internal
 import Control.Concurrent (threadDelay)
-import Control.Exception (IOException, try, SomeException, throwIO, bracketOnError, bracket)
+import Control.Exception (try, SomeException, throwIO, bracketOnError, bracket)
+import Foreign.C.Error (Errno(..), eCONNABORTED)
+import GHC.IO.Exception (IOException(..))
 import Network.Socket (Socket, AddrInfo, SocketType)
 import Network.Socket.ByteString (recv, sendAll)
 import System.IO.Error (isDoesNotExistError)
@@ -445,7 +447,9 @@ acceptSafe socket =
                 then do
                     threadDelay 1000000
                     loop
-                else E.throwIO e
+                else if (Errno <$> ioe_errno e) == Just eCONNABORTED
+                        then loop
+                        else E.throwIO e
 
 message :: ByteString -> NS.SockAddr -> Message
 message = Message
